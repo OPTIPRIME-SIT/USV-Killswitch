@@ -1,0 +1,28 @@
+name: Build firmware
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  arduino:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install RP2040 core and libraries
+        run: |
+          arduino-cli core update-index --additional-urls https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+          arduino-cli core install rp2040:rp2040@6.0.0 --additional-urls https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+          arduino-cli lib install "Adafruit GFX Library@1.12.6"
+          arduino-cli lib install "Adafruit ST7735 and ST7789 Library@1.11.0"
+      - name: Compile transmitter
+        run: arduino-cli compile --fqbn rp2040:rp2040:rpipico --output-dir build/transmitter firmware/transmitter
+      - name: Compile receiver
+        run: arduino-cli compile --fqbn rp2040:rp2040:rpipico --output-dir build/receiver firmware/receiver
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rp2040-sik-kill-switch-uf2
+          path: |
+            build/transmitter/*.uf2
+            build/receiver/*.uf2
