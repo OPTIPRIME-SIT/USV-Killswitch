@@ -5,7 +5,9 @@ pair of SiK telemetry radios. The operator unit has two normally-open buttons
 and a 1.9-inch ST7789 display. The vehicle unit exposes 3.3 V state outputs for
 a Pixhawk 6X AUX input and an isolated relay/driver stage.
 
-There is no limitation to the type of enclosure and buttons used, as long as they are wired in same fashion with logic. In our case we used Eaton A22-IGE1M for the on-board e-stop, and Eaton A22-I2M enclosure with 2 buttons.
+There is no limitation to the type of enclosure and buttons used, as long as they are wired in same fashion with logic. In our case we used Eaton A22-IGE1M for the on-board e-stop, and Eaton A22-I2M enclosure with 2 buttons for the remote kill switch.
+
+As for radio, pick any that is capable of transmitting UART over RF. We used the Holybro SiK Telemetry V3 915MHz 100mW with a 5dBi antenna from the 1W variant, as the original 2dBi antenna was easily dropping connections. To meet SRD limits in Singapore, the power setting in Mission Planner was set as `TXPOWER = 17`.
 
 This was developed for OptiPrime's entry to RobotX 2026 — USV Kill Switch POR. Concept and hardware developed by Nigel, software and assembly developed by Hugh. AI was used to assist in programming the logic.
 
@@ -15,6 +17,10 @@ This was developed for OptiPrime's entry to RobotX 2026 — USV Kill Switch POR.
 > normally-closed emergency-stop circuit in series with the contactor coil and
 > commission the system without propellers, traction power, or other hazardous
 > loads connected.
+>
+> ENSURE YOU UNDERSTAND YOUR COUNTRY'S REGULATIONS REGARDING SHORT-RANGE DEVICES
+>
+> WE WILL NOT BE HELD RESPONSIBLE IN THE EVENT YOU ARE CAUGHT FLOUTING REGULATIONS
 
 ![Overall operating diagram](docs/images/system-operating-diagram.png)
 
