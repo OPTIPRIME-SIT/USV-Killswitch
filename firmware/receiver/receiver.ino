@@ -14,6 +14,7 @@ constexpr uint8_t KILL_STATE_PIN = 13;
 
 constexpr uint32_t LINK_TIMEOUT_MS = 2000;
 constexpr uint32_t STATUS_INTERVAL_MS = 1000;
+constexpr uint32_t MAVLINK_HEARTBEAT_INTERVAL_MS = 1000;
 
 char radioLine[64];
 size_t radioLineLength = 0;
@@ -21,6 +22,49 @@ bool relayRunning = false;
 bool linkConnected = false;
 uint32_t lastValidContact = 0;
 uint32_t lastStatusReport = 0;
+uint32_t lastMavlinkHeartbeat = 0;
+
+// SiK with S6 MAVLINK=1 can insert binary MAVLink packets into the UART
+// stream. Discard complete packets so they cannot contaminate CMD/HB lines.
+bool mavlinkPacket = false;
+uint8_t mavlinkMagic = 0;
+uint8_t mavlinkIndex = 0;
+uint16_t mavlinkBytesRemaining = 0;
+
+uint16_t mavlinkChecksumAccumulate(uint8_t byte, uint16_t checksum) {
+  uint8_t temp = byte ^ static_cast<uint8_t>(checksum & 0xFF);
+  temp ^= temp << 4;
+  return (checksum >> 8) ^ (static_cast<uint16_t>(temp) << 8) ^
+         (static_cast<uint16_t>(temp) << 3) ^ (temp >> 4);
+}
+
+void sendMavlinkHeartbeat() {
+  static uint8_t mavlinkSequence = 0;
+  const uint8_t frame[] = {0xFE, 9, mavlinkSequence++, 202, 191, 0,
+                           0, 0, 0, 0, 18, 0, 0, 4, 3};
+  uint16_t checksum = 0xFFFF;
+  for (uint8_t i = 1; i < sizeof(frame); ++i) checksum = mavlinkChecksumAccumulate(frame[i], checksum);
+  checksum = mavlinkChecksumAccumulate(50, checksum);
+  Serial1.write(frame, sizeof(frame));
+  Serial1.write(static_cast<uint8_t>(checksum & 0xFF));
+  Serial1.write(static_cast<uint8_t>(checksum >> 8));
+}
+
+void discardMavlinkByte(uint8_t byte) {
+  if (!mavlinkPacket) {
+    if (byte != 0xFE && byte != 0xFD) return;
+    mavlinkPacket = true;
+    mavlinkMagic = byte;
+    mavlinkIndex = 0;
+    return;
+  }
+  ++mavlinkIndex;
+  if (mavlinkIndex == 1) {
+    mavlinkBytesRemaining = byte + (mavlinkMagic == 0xFE ? 6 : 11);
+    return;
+  }
+  if (--mavlinkBytesRemaining == 0) mavlinkPacket = false;
+}
 
 void reportRelayState() {
   Serial.println(relayRunning ? "RELAY STARTED" : "RELAY STOPPED");
@@ -102,7 +146,13 @@ void processRadioLine(char* line) {
 
 void readRadio() {
   while (Serial1.available()) {
-    const char c = static_cast<char>(Serial1.read());
+    const uint8_t byte = static_cast<uint8_t>(Serial1.read());
+    if (mavlinkPacket || byte == 0xFE || byte == 0xFD) {
+      discardMavlinkByte(byte);
+      continue;
+    }
+    const char c = static_cast<char>(byte);
+    if (c != '\r' && c != '\n' && (byte < 0x20 || byte > 0x7E)) continue;
     if (c == '\r') continue;
 
     if (c == '\n') {
@@ -147,5 +197,10 @@ void loop() {
 
   if (millis() - lastStatusReport >= STATUS_INTERVAL_MS) {
     reportStatus();
+  }
+
+  if (millis() - lastMavlinkHeartbeat >= MAVLINK_HEARTBEAT_INTERVAL_MS) {
+    lastMavlinkHeartbeat = millis();
+    sendMavlinkHeartbeat();
   }
 }
