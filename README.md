@@ -5,6 +5,8 @@ pair of SiK telemetry radios. The operator unit has two normally-open buttons
 and a 1.9-inch ST7789 display. The vehicle unit exposes 3.3 V state outputs for
 a Pixhawk 6X AUX input and an isolated relay/driver stage.
 
+There is no limitation to the type of enclosure and buttons used, as long as they are wired in same fashion with logic. In our case we used Eaton A22-IGE1M for the on-board e-stop, and Eaton A22-I2M enclosure with 2 buttons.
+
 This was developed for OptiPrime's entry to RobotX 2026 — USV Kill Switch POR. Concept and hardware developed by Nigel, software and assembly developed by Hugh. AI was used to assist in programming the logic.
 
 > [!CAUTION]
@@ -18,8 +20,8 @@ This was developed for OptiPrime's entry to RobotX 2026 — USV Kill Switch POR.
 
 ## Operation
 
-- **RIGHT** latches and transmits `KILL`.
-- **LEFT** requests `RESET`/START.
+- **RED** latches and transmits `KILL`.
+- **GREEN** requests `RESET`/START.
 - The transmitter sends a state heartbeat every 250 ms.
 - The receiver enters `KILL` after 2 seconds without a valid operator packet.
 - Recovery of the radio link does not clear `KILL`; a new explicit RESET button
