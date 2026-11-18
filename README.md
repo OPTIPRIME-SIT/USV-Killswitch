@@ -5,6 +5,8 @@ pair of SiK telemetry radios. The operator unit has two normally-open buttons
 and a 1.9-inch ST7789 display. The vehicle unit exposes 3.3 V state outputs for
 a Pixhawk 6X AUX input and an isolated relay/driver stage.
 
+This was developed for OptiPrime's entry to RobotX 2026 — USV Kill Switch POR. Concept and hardware developed by Nigel, software and assembly developed by Hugh. AI was used to assist in programming the logic.
+
 > [!CAUTION]
 > This is experimental firmware, not a certified safety controller. Do not use
 > it as the only means of removing hazardous energy. Keep a hard-wired,
