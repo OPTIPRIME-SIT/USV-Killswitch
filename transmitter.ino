@@ -52,8 +52,6 @@ uint32_t lastMavlinkHeartbeat = 0;
 uint8_t localRssi = 0;
 uint8_t remoteRssi = 0;
 bool rssiAvailable = false;
-LatchedState receiverState = LatchedState::KILL;
-bool receiverStateKnown = false;
 
 Adafruit_ST7789 tft(&SPI1, LCD_CS, LCD_DC, LCD_RESET);
 
@@ -120,9 +118,6 @@ void processRadioLine(char* line) {
   if (strcmp(ackState, "RESET") != 0 && strcmp(ackState, "KILL") != 0) return;
 
   lastAckReceived = millis();
-  receiverState = strcmp(ackState, "RESET") == 0 ? LatchedState::RESET
-                                                   : LatchedState::KILL;
-  receiverStateKnown = true;
   if (!linkEstablished) {
     linkEstablished = true;
     Serial.println("Receiver link established");
@@ -153,14 +148,11 @@ void processMavlinkByte(uint8_t byte) {
   }
 
   const uint8_t payloadStart = mavlinkMagic == 0xFE ? 6 : 10;
-  const bool isRadioStatus = mavlinkMessageId == 109 || mavlinkMessageId == 166;
-  // RADIO_STATUS/RADIO pack rxerrors/fixed first; rssi/remrssi are payload
-  // offsets 4 and 5 even though they are listed first in the XML definition.
-  if (isRadioStatus && mavlinkIndex == payloadStart + 4) mavlinkRssi = byte;
-  if (isRadioStatus && mavlinkIndex == payloadStart + 5) mavlinkRemoteRssi = byte;
+  if (mavlinkMessageId == 109 && mavlinkIndex == payloadStart) mavlinkRssi = byte;
+  if (mavlinkMessageId == 109 && mavlinkIndex == payloadStart + 1) mavlinkRemoteRssi = byte;
 
   if (--mavlinkBytesRemaining == 0) {
-    if (isRadioStatus && mavlinkLength >= 6) {
+    if (mavlinkMessageId == 109 && mavlinkLength >= 2) {
       localRssi = mavlinkRssi;
       remoteRssi = mavlinkRemoteRssi;
       rssiAvailable = true;
@@ -177,28 +169,19 @@ void updateDisplay() {
   tft.setCursor(8, 10);
   tft.setTextColor(ST77XX_WHITE);
   tft.println("SAFETY LINK");
-  tft.setCursor(8, 40);
+  tft.setCursor(8, 48);
   tft.setTextColor(latchedState == LatchedState::KILL ? ST77XX_RED : ST77XX_GREEN);
-  tft.print("CMD: ");
+  tft.print("STATE: ");
   tft.println(stateName());
-  tft.setCursor(8, 68);
-  if (linkHealthy && receiverStateKnown) {
-    tft.setTextColor(receiverState == LatchedState::KILL ? ST77XX_RED : ST77XX_GREEN);
-    tft.print("RX: ");
-    tft.println(receiverState == LatchedState::RESET ? "RESET" : "KILL");
-  } else {
-    tft.setTextColor(ST77XX_YELLOW);
-    tft.println("RX: UNKNOWN");
-  }
-  tft.setCursor(8, 96);
+  tft.setCursor(8, 82);
   tft.setTextColor(linkHealthy ? ST77XX_GREEN : ST77XX_RED);
   tft.println(linkHealthy ? "LINK: OK" : "LINK: LOST");
   tft.setTextColor(ST77XX_CYAN);
-  tft.setCursor(8, 124);
+  tft.setCursor(8, 116);
   if (rssiAvailable) {
     tft.print("RSSI L: ");
     tft.println(localRssi);
-    tft.setCursor(8, 148);
+    tft.setCursor(8, 144);
     tft.print("RSSI R: ");
     tft.println(remoteRssi);
   } else {
